@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+    <title>Othello</title>
+    <style>
+        body {
+            font-size: 20px;
+            font-family: Arial;
+        }
+        
+        #jogo {
+            float:left;
+        }
+        
+        .numeroPlacar {
+            font-size: 40px;
+            font-weight: 900;
+        }
+        
+        .placar {
+            width:200px;
+            float: left;
+            background-color: cadetblue;
+            padding: 18px;
+        }
+    </style>
+</head>
+<body>
+    <p id="nomePartida">P: 8172389721398721</p>
+    <p id="msg">kls jdkalsj dksaljdksaljd</p>
+    <div id="jogo"></div>
+    <div class="placar">
+        <p>Pretas</p>
+        <p class="numeroPlacar" id="placarPretas">2</p>
+        <p>Brancas</p>
+        <p class="numeroPlacar" id="placarBrancas">2</p>
+    </div>
+    <script src="js/phaser.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script src="js/othello-cliente.js"></script>
+</body>
+</html>
