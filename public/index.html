@@ -1,42 +1,70 @@
-<!doctype html>
+<!DOCTYPE html>  
 <html>
-<head>
-    <title>Othello</title>
-    <style>
-        body {
-            font-size: 20px;
-            font-family: Arial;
+    <head>  
+        <meta charset="utf-8" />
+        <title> Elemental Card Game </title>
+        <script src="js/jquery-3.1.1.js"></script>
+        <script src="js/phaser.js"></script>
+        <script src="js/ecg.js"></script>
+        <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    </head>
+    <body>
+    
+    <script>
+        var estadoFB = "";
+        var jogadorFB = {};
+        window.fbAsyncInit = function() {
+            FB.init({
+                appId      : '1864130030489967',
+                xfbml      : true,
+                version    : 'v2.8'
+            });
+
+//            FB.getLoginStatus(function(response) {
+//                console.log(response);
+//                if(response.status != "connected") {
+//                    FB.login(function(responseLogin){
+//                        estadoFB = responseLogin.status;
+//                        if(estadoFB == "connected"){
+//                            carregarInfoFB();
+//                        }
+//                    }, {scope: 'email,user_relationships'});
+//                }
+//                else {
+//                    // está conectado
+//                    estadoFB = response.status; 
+//                    carregarInfoFB();
+//                }
+//            });
+        };
+        
+        function logarFB() {
+            FB.login(function(responseLogin){
+                estadoFB = responseLogin.status;
+                if(estadoFB == "connected"){
+                    carregarInfoFB();
+                }
+            }, {scope: 'email,user_relationships'});
         }
         
-        #jogo {
-            float:left;
+        function carregarInfoFB() {
+            FB.api("/me", 
+                { fields: "id,name,picture,relationship_status"},
+                function(data){
+                    console.log(data);
+                    jogadorFB.id = data.id;
+                    jogadorFB.nome = data.name;
+                    jogadorFB.foto = data.picture.data.url;
+            });  
         }
-        
-        .numeroPlacar {
-            font-size: 40px;
-            font-weight: 900;
-        }
-        
-        .placar {
-            width:200px;
-            float: left;
-            background-color: cadetblue;
-            padding: 18px;
-        }
-    </style>
-</head>
-<body>
-    <p id="nomePartida">P: 8172389721398721</p>
-    <p id="msg">kls jdkalsj dksaljdksaljd</p>
-    <div id="jogo"></div>
-    <div class="placar">
-        <p>Pretas</p>
-        <p class="numeroPlacar" id="placarPretas">2</p>
-        <p>Brancas</p>
-        <p class="numeroPlacar" id="placarBrancas">2</p>
-    </div>
-    <script src="js/phaser.js"></script>
-    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
-    <script src="js/othello-cliente.js"></script>
-</body>
-</html>
+
+  (function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement(s); js.id = id;
+     js.src = "//connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+   }(document, 'script', 'facebook-jssdk'));
+</script>  
+    </body>  
+</html>  

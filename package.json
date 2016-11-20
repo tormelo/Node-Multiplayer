@@ -1,8 +1,8 @@
 {
-  "name": "aula-othello-turnos",
+  "name": "elemental-card-game",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "ecg.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.14.0",
-    "phaser": "^2.6.2",
-    "socket.io": "^1.5.0"
+    "fs": "0.0.1-security",
+    "socket.io": "^1.5.1"
   }
 }
