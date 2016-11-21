@@ -1,16 +1,33 @@
 /*global Phaser, io*/
-var socket = {};
-
 var jogador = {};
 var oponente = {};
 
+var socket = {};
+
+//Variaveis de referencia interface
+var xJogador = 0,
+    yJogador = 0, 
+    xOponente = 0,
+    yOponente = 0;
+
 var nomeJogador,
     profilePic,
-    statistics;
+    statistics,
+    botaoJogar;
+
+//Variaveis dentro do jogo
+var estado = "", idPartida = "";
+    
+//Variaveis oponente
+var nomeOponente,
+    picOponente,
+    statOponente;
 
 var loginState = {
     preload: function() {
         this.load.spritesheet("loginButton", "assets/loginButton.png", 288, 62);
+        
+        socket = io();
     },
     create: function() {
         game.stage.backgroundColor = '#d3e3ed';
@@ -32,143 +49,125 @@ var loginState = {
 var menuState = {
     preload: function() {    
         game.load.crossOrigin = '*';
-        this.imagem = game.load.image("playerPic", jogadorFB.foto);
+        this.load.image("playerPic", jogadorFB.foto);
+        this.load.spritesheet("playButton", "assets/playButton.png", 200, 60);
     },
-    create: function() {
-        nomeJogador = game.add.text(100, 20, "", 
-            { font: "30px Arial", fill: "#ffffff" });  
-        statistics = game.add.text(100, 60, "", 
-            { font: "30px Arial", fill: "#ffffff" });  
-            
-        socket = io();
     
+    create: function() {
+        xJogador = 20;
+        yJogador = 20;
+        
+        nomeJogador = game.add.text(xJogador + 80, yJogador, "", { font: "30px Arial", fill: "#ffffff" });  
+        statistics = game.add.text(xJogador + 80, yJogador + 40, "", { font: "30px Arial", fill: "#ffffff" });  
+        
         socket.on("inicializar", function (data) {            
             jogador =  data;   
             console.log(jogador.nome);
-            profilePic = game.add.sprite(20, 20, "playerPic");
+            profilePic = game.add.sprite(xJogador, yJogador, "playerPic");
             profilePic.scale = new Phaser.Point(1.5, 1.5);
             statistics.text = "V: " + jogador.vitorias.toString();
             nomeJogador.text = jogador.nome;
+            botaoJogar = game.add.button((game.width/2)/2, game.height/2, 'playButton', menuState.clicouJogar, this, 0, 1, 2);
+            botaoJogar.pivot = new Phaser.Point(botaoJogar.width / 2, botaoJogar.height / 2);
         });
         
-        this.conectar(); //game.load.onLoadComplete(this.initialize, this);
+        socket.on("mensagem-conexao", function (data) {
+            console.log("Conectado");
+        });   
+        
+        socket.on("encontrou-partida", function (data) {            
+            if(data.hasOwnProperty("jogador2")){
+                estado = "jogador2";
+                oponente = data.jogador1;
+            } else {
+                estado = "jogador1";
+                oponente = {};
+            }
+            
+            idPartida = data.id;
+            
+            game.state.start('game');
+        });
+        
+        this.conectar();
     },
+    
     update: function() {
+       
     },
     
     conectar: function () {
+        console.log("Conectando...");
         socket.emit("conexao", {
             id: jogadorFB.id, 
             nome: jogadorFB.nome, 
             pic: jogadorFB.foto
         });
     },
+        
+    clicouJogar: function () {
+        console.log("Procurando partida...");
+        socket.emit("jogar", {
+            id: jogadorFB.id
+        });
+    }
 }
 
-
-// Create our 'main' state that will contain the game
 var gameState = {
     preload: function() {         
-        // Load the bird sprite        
-        game.load.image('pipe', 'assets/pipe.png');
         game.load.crossOrigin = '*';
-        game.load.image('bird', jogadorFB.foto); 
+        this.load.image("playerPic", jogadorFB.foto);
+        this.load.image("vazio", "assets/vazio.png");
+         
+        if(estado == "jogador2"){
+            this.load.image("enemyPic", oponente.pic);
+        }
     },
 
     create: function() { 
-        // Change the background color of the game to blue
-        game.stage.backgroundColor = '#71c5cf';
-
-        // Set the physics system
-        game.physics.startSystem(Phaser.Physics.ARCADE);
-
-        // Display the bird at the position x=100 and y=245
-        this.bird = game.add.sprite(100, 245, 'bird');
-
-        // Add physics to the bird
-        // Needed for: movements, gravity, collisions, etc.
-        game.physics.arcade.enable(this.bird);
-
-        // Add gravity to the bird to make it fall
-        this.bird.body.gravity.y = 1000;  
-
-        // Call the 'jump' function when the spacekey is hit
-        var spaceKey = game.input.keyboard.addKey(
-                        Phaser.Keyboard.SPACEBAR);
-        spaceKey.onDown.add(this.jump, this);   
+        //Inicialização das informações do jogador
+        xJogador = 20;
+        yJogador = 500;
+        nomeJogador = game.add.text(xJogador + 80, yJogador, "", { font: "30px Arial", fill: "#ffffff" });  
+        statistics = game.add.text(xJogador + 80, yJogador + 40, "", { font: "30px Arial", fill: "#ffffff" });  
+        profilePic = game.add.sprite(xJogador, yJogador, "playerPic");
+        profilePic.scale = new Phaser.Point(1.5, 1.5);
+        statistics.text = "V: " + jogador.vitorias.toString();
+        nomeJogador.text = jogador.nome;
         
-        // Create an empty group
-        this.pipes = game.add.group();
-        this.timer = game.time.events.loop(1500, this.addRowOfPipes, this); 
+        //Inicialização das infos do oponente
+        xOponente = 500;
+        yOponente = 20;
+        nomeOponente = game.add.text(xOponente + 80, yOponente, "", { font: "30px Arial", fill: "#ffffff" });  
+        statOponente = game.add.text(xOponente + 80, yOponente + 40, "", { font: "30px Arial", fill: "#ffffff" }); ; 
+        picOponente = game.add.sprite(xOponente, yOponente, "vazio");;
+        nomeOponente.text = "Esperando oponente...";
+      
+        if(estado == "jogador2"){
+            socket.emit("jogador2pronto");
+        }
         
-        this.score = 0;
-        this.labelScore = game.add.text(20, 20, "0", 
-            { font: "30px Arial", fill: "#ffffff" });  
+        socket.on("iniciar-partida", function (data) {            
+            console.log("Partida iniciada!");
+            if(estado == "jogador1"){
+                oponente = data.jogador2;
+                gameState.load.image("enemyPic", oponente.pic);
+            }
+            picOponente = null;
+            picOponente = game.add.sprite(xOponente, yOponente, "enemyPic");
+            picOponente.scale = new Phaser.Point(1.5, 1.5);
+            statOponente.text = "V: " + oponente.vitorias.toString();
+            nomeOponente.text = oponente.nome;
+        });
     },
 
     update: function() {
-        // If the bird is out of the screen (too high or too low)
-        // Call the 'restartGame' function
-        if (this.bird.y < 0 || this.bird.y > 490)
-            this.restartGame();
-        
-        game.physics.arcade.overlap(
-        this.bird, this.pipes, this.restartGame, null, this);
-    },
-    
-    // Make the bird jump 
-    jump: function() {
-        // Add a vertical velocity to the bird
-        this.bird.body.velocity.y = -350;
+     
     },
 
-    // Restart the game
-    restartGame: function() {
-        // Start the 'main' state, which restarts the game
-        $.post("/recorde", 
-               { id: jogadorFB.id, 
-                 pontos: this.score }
-                , function(res){
-                   console.log(res); 
-                    game.state.start('main');
-                });
-    },
-    
-    addOnePipe: function(x, y) {
-        // Create a pipe at the position x and y
-        var pipe = game.add.sprite(x, y, 'pipe');
-
-        // Add the pipe to our previously created group
-        this.pipes.add(pipe);
-
-        // Enable physics on the pipe 
-        game.physics.arcade.enable(pipe);
-
-        // Add velocity to the pipe to make it move left
-        pipe.body.velocity.x = -200; 
-
-        // Automatically kill the pipe when it's no longer visible 
-        pipe.checkWorldBounds = true;
-        pipe.outOfBoundsKill = true;
-    },
-    
-    addRowOfPipes: function() {
-        // Randomly pick a number between 1 and 5
-        // This will be the hole position
-        var hole = Math.floor(Math.random() * 5) + 1;
-
-        // Add the 6 pipes 
-        // With one big hole at position 'hole' and 'hole + 1'
-        for (var i = 0; i < 8; i++)
-            if (i != hole && i != hole + 1) 
-                this.addOnePipe(400, i * 60 + 10);  
-        
-        this.score += 1;
-        this.labelScore.text = this.score;  
-    }
 };
 
-var game = new Phaser.Game(800, 600, Phaser.WEBGL);
+var game = new Phaser.Game(800, 600, Phaser.AUTO, "jogo");
 
 game.state.add('login', loginState); 
 game.state.add('menu', menuState); 

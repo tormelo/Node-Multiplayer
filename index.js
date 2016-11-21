@@ -1,10 +1,9 @@
-// configuracao básica de servidor
+/*global node*/
 var express = require("express");
 var app = express();
-var servidor = require("http").createServer(app);
+var servidor = require("http").Server(app);
 var io = require('socket.io')(servidor);
 var fs = require("fs");
-//var bodyParser= require('body-parser');
 
 var partidas = {};
 
@@ -17,9 +16,7 @@ fs.readFile("data/usuarios.json", "utf8", function(err, data){
 })
 
 // envia o que está na pasta public
-app.use(express.static("public"));
-//app.use(bodyParser.json()); // support json encoded bodies
-//app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
+app.use(express.static(__dirname + '/public'));
 
 //nova conexao
 io.on('connection', function (socket) {
@@ -40,11 +37,41 @@ io.on('connection', function (socket) {
         usuarios[data.id].nome = data.nome;
         usuarios[data.id].pic = data.pic;
         
-        if(salvar) salvarDados();
+        if(salvar) SalvarDados();
         
         socket.emit("inicializar", usuarios[data.id]);
     });
-                                       
+    
+    //pediu para jogar
+    socket.on("jogar", function (data) {
+        console.log("Jogador " + data.id + " esta procurando uma partida...");
+        //Verifica se existe alguma partida em espera
+        var idPartida = EncontrarPartida();
+        //Cria uma nova se não encontrar
+        if(idPartida == "") {
+            idPartida = "R:" + socket.id;
+            partidas[idPartida] = {};
+            partidas[idPartida].jogador1 = usuarios[data.id];
+            partidas[idPartida].nroJogadores = 1;
+            socket.join(idPartida);
+            socket.room = idPartida;
+        }
+        //Entra nela caso encontre
+        else {
+            partidas[idPartida].jogador2 = usuarios[data.id];
+            partidas[idPartida].nroJogadores = 2;
+            socket.join(idPartida);
+            socket.room = idPartida;
+        }
+        partidas[idPartida].id = idPartida;
+        
+        socket.emit("encontrou-partida", partidas[idPartida]);
+    });
+    
+    socket.on('jogador2pronto', function () {
+        io.to(socket.room).emit("iniciar-partida", partidas[socket.room]);
+    });
+    
     // usuario desconectou
     socket.on('disconnect', function () {
 //        console.log('usuario desconectou');
@@ -54,7 +81,7 @@ io.on('connection', function (socket) {
     });
 });
 
-function salvarDados () {
+function SalvarDados () {
     fs.writeFile(
   "data/usuarios.json",     // endereco
   JSON.stringify(usuarios),     // dados
@@ -65,6 +92,16 @@ function salvarDados () {
     }
     console.log("Usuarios.json foi salvo!")
   });
+}
+
+
+function EncontrarPartida () {
+    for( var idPartida in partidas) {
+        if(partidas[idPartida].nroJogadores == 1) {
+            return idPartida;
+        }
+    }
+    return "";
 }
 
 //app.post("/recorde", function(req, res) {
