@@ -39,6 +39,7 @@ io.on('connection', function (socket) {
         //Se o jogador não existe no banco de dados salva informações com o n de vitorias zerado 
         if(!usuarios.hasOwnProperty(data.id)){
             usuarios[data.id] = {};
+            usuarios[data.id].id = data.id;
             usuarios[data.id].vitorias = 0;
             salvar = true;
         }
@@ -48,6 +49,9 @@ io.on('connection', function (socket) {
         usuarios[data.id].pic = data.pic;
         
         if(salvar) SalvarDados();
+        
+        var newRanking = CalcularRanking();
+        socket.emit('atualizar-ranking', newRanking);
         
         socket.emit('inicializar', usuarios[data.id]);
     });
@@ -61,6 +65,7 @@ io.on('connection', function (socket) {
         if(idPartida == '') {
             idPartida = 'R:' + socket.id;
             partidas[idPartida] = {};
+            partidas[idPartida].idJ1 = usuarios[data.id].id;
             partidas[idPartida].jogadorUm = new jogador(usuarios[data.id].nome, usuarios[data.id].pic, usuarios[data.id].vitorias);
             partidas[idPartida].nroJogadores = 1;
             partidas[idPartida].ganhador = '';
@@ -70,6 +75,7 @@ io.on('connection', function (socket) {
         }
         //Entra nela caso encontre
         else {
+            partidas[idPartida].idJ2 = usuarios[data.id].id;
             partidas[idPartida].jogadorDois = new jogador(usuarios[data.id].nome, usuarios[data.id].pic, usuarios[data.id].vitorias);
             partidas[idPartida].nroJogadores = 2;
             partidas[idPartida].jogadorDois.turnosVencidos = 0;
@@ -86,12 +92,20 @@ io.on('connection', function (socket) {
         io.to(socket.room).emit('iniciar-partida', partidas[socket.room]);
     });
     
+    //Sinaliza apos a entrada do jogador 2 que a partida pode comecar
+    socket.on('pediu-ranking', function () {
+        var newRanking = CalcularRanking();
+        socket.emit('atualizar-ranking', newRanking);
+    });
+    
     //Atualiza a situação da partida no servidor e envia uma mensagem de atualização para as pessoas da sala
     socket.on('escolheu-carta', function (data) {
         console.log(socket.room);
         console.log(data.jogador);
         console.log(data.carta);
         partidas[socket.room][data.jogador].carta = data.carta;
+        
+        var contar = true;
         
         //verifica se os dois já jogaram
         if (partidas[socket.room].jogadorUm.carta !== 4 && partidas[socket.room].jogadorDois.carta !== 4) {
@@ -102,12 +116,25 @@ io.on('connection', function (socket) {
                 
                 if(partidas[socket.room][ganhador].turnosVencidos == 3){
                     partidas[socket.room][ganhador].vitorias++;
+                    
+                    if(ganhador == "jogadorUm") usuarios[partidas[socket.room].idJ1].vitorias++;
+                    if(ganhador == "jogadorDois") usuarios[partidas[socket.room].idJ2].vitorias++;
                     SalvarDados();
+                    contar = false;
                 }  
             }
             
             partidas[socket.room].ganhador = ganhador;
             io.to(socket.room).emit('terminar-turno', partidas[socket.room]);
+            
+            if (contar) {
+                setTimeout(function() {io.to(socket.room).emit('chamar-turno');}, 3000);
+            } 
+            
+            if (!contar) {
+                setTimeout(function() {io.to(socket.room).emit('mostrar-final');}, 3000);
+            }
+            
             novoTurno(socket.room);
         } else {
             io.to(socket.room).emit('atualizar-tela', {jogador: data.jogador});
@@ -131,12 +158,20 @@ io.on('connection', function (socket) {
         
     });
     
+    socket.on('sair', function(){
+        socket.leave(socket.room);
+        console.log('usuario desconectou');
+        io.to(socket.room).emit('desconectar');
+        partidas[socket.room] = null;
+        delete partidas[socket.room];
+    });
+    
     // usuario desconectou
     socket.on('disconnect', function () {
-//        console.log('usuario desconectou');
-//        io.to(socket.room).emit('oponente-disconectou');
-//        partidas[socket.room] = null;
-//        delete partidas[socket.room];
+        console.log('usuario desconectou');
+        io.to(socket.room).emit('desconectar');
+        partidas[socket.room] = null;
+        delete partidas[socket.room];
     });
 });
 
@@ -180,6 +215,41 @@ function VerificarResultado (idPartida) {
     } else {
         return '';
     }
+}
+
+function CalcularRanking () {
+    var ranking = [];
+    var blacklist = {};
+    var usuarioAtual;
+    var indice = 0;
+    var inicio;
+    
+    while (indice <= 9) {
+        inicio = true
+        usuarioAtual = {};
+        
+        for(var idUsuario in usuarios) {
+            if(!blacklist.hasOwnProperty(idUsuario)){
+                 if(inicio) {
+                usuarioAtual = usuarios[idUsuario];
+                inicio = false;
+            }        
+            
+            console.log(usuarios[idUsuario].vitorias + " " +  usuarioAtual.vitorias);
+            if(usuarios[idUsuario].vitorias > usuarioAtual.vitorias) {
+                usuarioAtual = usuarios[idUsuario];
+            }
+            
+            };
+        }
+        
+        if(usuarioAtual.hasOwnProperty("id")) blacklist[usuarioAtual.id] = usuarioAtual;
+        
+        ranking.push(usuarioAtual);
+        
+        indice++;
+    }
+    return ranking;
 }
 
 //app.post('/recorde', function(req, res) {
